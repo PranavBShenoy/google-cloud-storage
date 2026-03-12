@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dashboard</title>
+
+<style>
+body{
+font-family: Arial;
+margin:40px;
+background:#f4f4f4;
+}
+
+h2{
+margin-bottom:20px;
+}
+
+.topbar{
+display:flex;
+gap:10px;
+margin-bottom:20px;
+}
+
+button{
+padding:8px 14px;
+cursor:pointer;
+}
+
+table{
+width:100%;
+background:white;
+border-collapse:collapse;
+}
+
+th,td{
+padding:10px;
+border-bottom:1px solid #ddd;
+}
+
+.search{
+margin-bottom:20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>Welcome, <span id="name"></span></h2>
+
+<div class="topbar">
+
+<button onclick="goUpload()">Upload File</button>
+<button onclick="logout()">Logout</button>
+
+</div>
+
+<input class="search" type="text" id="search" placeholder="Search files..." onkeyup="filterFiles()">
+
+<h3>Your Files</h3>
+
+<table>
+
+<thead>
+<tr>
+<th>Name</th>
+<th>Size</th>
+<th>Actions</th>
+</tr>
+</thead>
+
+<tbody id="filesTable"></tbody>
+
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="dashboard.js"></script>
+
+</body>
+</html>
