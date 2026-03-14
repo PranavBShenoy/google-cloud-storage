@@ -1,70 +1,103 @@
-const SUPABASE_URL = "https://ayqafhdzjjhnptoycbji.supabase.co"
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5cWFmaGR6ampobnB0b3ljYmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjQyNjQsImV4cCI6MjA4NzYwMDI2NH0.qHJkU3y-MmQzu22UvMVDASaK0a3Fi3ytImS3XZFtWRA"
+const SUPABASE_URL="https://ayqafhdzjjhnptoycbji.supabase.co"
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+const SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5cWFmaGR6ampobnB0b3ljYmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjQyNjQsImV4cCI6MjA4NzYwMDI2NH0.qHJkU3y-MmQzu22UvMVDASaK0a3Fi3ytImS3XZFtWRA"
 
-let filesCache = []
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON)
 
-async function loadUser() {
+let filesCache=[]
 
-const { data: { user } } = await sb.auth.getUser()
+async function loadUser(){
 
-if (!user) {
-window.location.href = "login.html"
+const {data:{user}}=await sb.auth.getUser()
+
+if(!user){
+window.location.href="login.html"
 return
 }
 
-const name = user.user_metadata?.name || user.email
-document.getElementById("name").innerText = name
+document.getElementById("name").innerText=user.email
 
 loadFiles()
+
 }
 
-async function logout() {
+async function logout(){
+
 await sb.auth.signOut()
-window.location.href = "login.html"
+
+window.location.href="login.html"
+
 }
 
 function goUpload(){
-window.location.href = "upload.html"
+
+window.location.href="upload.html"
+
 }
 
 async function loadFiles(){
 
-const { data } = await sb.auth.getSession()
-const token = data.session.access_token
+const {data}=await sb.auth.getSession()
 
-const res = await fetch("http://127.0.0.1:9000/files",{
-headers:{
-Authorization:"Bearer "+token
-}
+const token=data.session.access_token
+
+const res=await fetch("http://127.0.0.1:9000/files",{
+headers:{Authorization:"Bearer "+token}
 })
 
-const files = await res.json()
+const files=await res.json()
 
-filesCache = files
+filesCache=files
 
 renderFiles(files)
 
 }
 
+function shorten(name){
+
+if(name.length<20) return name
+
+return name.substring(0,17)+"..."
+
+}
+
 function renderFiles(files){
 
-const table = document.getElementById("filesTable")
+const grid=document.getElementById("filesGrid")
 
-if(!table) return
-
-table.innerHTML = ""
+grid.innerHTML=""
 
 files.forEach(file=>{
 
-const row = document.createElement("tr")
+const card=document.createElement("div")
 
-row.innerHTML = `
-<td>${file.filename}</td>
-<td>${(file.size_bytes/1024).toFixed(1)} KB</td>
+card.className="card"
 
-<td>
+let preview="📄"
+
+if(file.filename.match(/\.(jpg|jpeg|png|gif)$/i)){
+
+preview=`<img src="http://127.0.0.1:9000/download/${file.stored_name}">`
+
+}
+
+if(file.filename.match(/\.(mp4|webm|mov)$/i)){
+
+preview=`<video width="180" controls>
+<source src="http://127.0.0.1:9000/download/${file.stored_name}">
+</video>`
+
+}
+
+card.innerHTML=`
+
+${preview}
+
+<p title="${file.filename}">
+${shorten(file.filename)}
+</p>
+
+<div class="actions">
 
 <button onclick="downloadFile('${file.stored_name}')">
 Download
@@ -78,10 +111,10 @@ Delete
 Share
 </button>
 
-</td>
+</div>
 `
 
-table.appendChild(row)
+grid.appendChild(card)
 
 })
 
@@ -89,9 +122,9 @@ table.appendChild(row)
 
 function filterFiles(){
 
-const q = document.getElementById("search").value.toLowerCase()
+const q=document.getElementById("search").value.toLowerCase()
 
-const filtered = filesCache.filter(f =>
+const filtered=filesCache.filter(f=>
 f.filename.toLowerCase().includes(q)
 )
 
@@ -109,14 +142,13 @@ async function deleteFile(name){
 
 if(!confirm("Delete file?")) return
 
-const { data } = await sb.auth.getSession()
-const token = data.session.access_token
+const {data}=await sb.auth.getSession()
+
+const token=data.session.access_token
 
 await fetch(`http://127.0.0.1:9000/delete/${name}`,{
 method:"DELETE",
-headers:{
-Authorization:"Bearer "+token
-}
+headers:{Authorization:"Bearer "+token}
 })
 
 loadFiles()
@@ -125,11 +157,11 @@ loadFiles()
 
 function shareFile(name){
 
-const link = `http://127.0.0.1:9000/download/${name}`
+const link=`http://127.0.0.1:9000/download/${name}`
 
-const whatsapp = `https://wa.me/?text=${encodeURIComponent(link)}`
+navigator.clipboard.writeText(link)
 
-window.open(whatsapp)
+alert("Link copied:\n"+link)
 
 }
 
