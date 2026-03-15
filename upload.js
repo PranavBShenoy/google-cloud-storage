@@ -10,112 +10,107 @@ const input = document.getElementById("fileInput")
 const list = document.getElementById("fileList")
 const uploadBtn = document.getElementById("uploadBtn")
 
-// prevent browser opening files
 document.addEventListener("dragover", e => e.preventDefault())
 document.addEventListener("drop", e => e.preventDefault())
 
-// file picker selection
 input.addEventListener("change", (e) => {
 
-  const selected = Array.from(e.target.files)
+    const selected = Array.from(e.target.files)
 
-  files = files.concat(selected)
+    files = files.concat(selected)
 
-  renderFiles()
+    renderFiles()
 
 })
 
-// drag over drop area
 drop.addEventListener("dragover", e => {
-  e.preventDefault()
-  drop.style.borderColor = "#22c55e"
+    e.preventDefault()
+    drop.style.borderColor = "#22c55e"
 })
 
-// drag leave
 drop.addEventListener("dragleave", () => {
-  drop.style.borderColor = "#38bdf8"
+    drop.style.borderColor = "#38bdf8"
 })
 
-// drop files
 drop.addEventListener("drop", e => {
 
-  e.preventDefault()
+    e.preventDefault()
 
-  const dropped = Array.from(e.dataTransfer.files)
+    const dropped = Array.from(e.dataTransfer.files)
 
-  files = files.concat(dropped)
+    files = files.concat(dropped)
 
-  renderFiles()
+    renderFiles()
 
-  drop.style.borderColor = "#38bdf8"
+    drop.style.borderColor = "#38bdf8"
 
 })
 
 function renderFiles() {
 
-  list.innerHTML = ""
+    list.innerHTML = ""
 
-  files.forEach((file, i) => {
+    files.forEach((file, i) => {
 
-    const div = document.createElement("div")
-    div.className = "file"
+        const div = document.createElement("div")
+        div.className = "file"
 
-    div.innerHTML = `
-      <span>${file.name} ${(file.size / 1024).toFixed(1)} KB</span>
-      <button onclick="removeFile(${i})">❌</button>
-    `
+        div.innerHTML = `
+        <span>${file.name} ${(file.size / 1024).toFixed(1)} KB</span>
+        <button onclick="removeFile(${i})">❌</button>
+        `
 
-    list.appendChild(div)
+        list.appendChild(div)
 
-  })
+    })
 
 }
 
 function removeFile(i) {
-  files.splice(i, 1)
-  renderFiles()
+    files.splice(i, 1)
+    renderFiles()
 }
 
 uploadBtn.addEventListener("click", uploadFiles)
 
 async function uploadFiles() {
 
-  if (files.length === 0) {
-    alert("Select files first")
-    return
-  }
-
-  const { data } = await sb.auth.getSession()
-
-  if (!data.session) {
-    alert("Login expired")
-    window.location = "login.html"
-    return
-  }
-
-  const token = data.session.access_token
-
-  for (const file of files) {
-
-    const formData = new FormData()
-    formData.append("file", file)
-
-    const res = await fetch("http://127.0.0.1:9000/upload", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + token
-      },
-      body: formData
-    })
-
-    if (!res.ok) {
-      alert("Upload failed")
-      return
+    if (files.length === 0) {
+        alert("Select files first")
+        return
     }
 
-  }
+    const { data } = await sb.auth.getSession()
 
-  alert("Upload successful")
-  window.location = "dashboard.html"
+    if (!data.session) {
+        alert("Login expired")
+        window.location = "login.html"
+        return
+    }
+
+    const token = data.session.access_token
+
+    for (const file of files) {
+
+        const formData = new FormData()
+        formData.append("file", file)
+
+            const res = await fetch("https://google-cloud-storage-77cv.onrender.com/upload", {
+                method: "POST",
+                headers: {
+                    Authorization: "Bearer " + token
+                },
+                body: formData
+            })
+
+            if (!res.ok) {
+                alert("Upload failed")
+                return
+            }
+
+    }
+
+    alert("Upload successful")
+    window.location = "dashboard.html"
 
 }

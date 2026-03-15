@@ -41,7 +41,7 @@ const {data}=await sb.auth.getSession()
 
 const token=data.session.access_token
 
-const res=await fetch("http://127.0.0.1:9000/files",{
+const res=await fetch("https://google-cloud-storage-77cv.onrender.com/files",{
 headers:{Authorization:"Bearer "+token}
 })
 
@@ -77,14 +77,14 @@ let preview="📄"
 
 if(file.filename.match(/\.(jpg|jpeg|png|gif)$/i)){
 
-preview=`<img src="http://127.0.0.1:9000/download/${file.stored_name}">`
+preview=`<img src="https://google-cloud-storage-77cv.onrender.com/download/${file.stored_name}">`
 
 }
 
 if(file.filename.match(/\.(mp4|webm|mov)$/i)){
 
 preview=`<video width="180" controls>
-<source src="http://127.0.0.1:9000/download/${file.stored_name}">
+<source src="https://google-cloud-storage-77cv.onrender.com/download/${file.stored_name}">
 </video>`
 
 }
@@ -134,7 +134,7 @@ renderFiles(filtered)
 
 function downloadFile(name){
 
-window.open(`http://127.0.0.1:9000/download/${name}`)
+window.open(`https://google-cloud-storage-77cv.onrender.com/download/${name}`)
 
 }
 
@@ -146,7 +146,7 @@ const {data}=await sb.auth.getSession()
 
 const token=data.session.access_token
 
-await fetch(`http://127.0.0.1:9000/delete/${name}`,{
+await fetch(`https://google-cloud-storage-77cv.onrender.com/delete/${name}`,{
 method:"DELETE",
 headers:{Authorization:"Bearer "+token}
 })
@@ -157,7 +157,7 @@ loadFiles()
 
 function shareFile(name){
 
-const link=`http://127.0.0.1:9000/download/${name}`
+const link=`https://google-cloud-storage-77cv.onrender.com/download/${name}`
 
 navigator.clipboard.writeText(link)
 
