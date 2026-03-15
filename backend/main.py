@@ -120,16 +120,15 @@ async def get_files(authorization: str = Header(None)):
 # -----------------------
 @app.get("/download/{name}")
 async def download_file(name: str):
-
     for folder in UPLOAD_DIR.iterdir():
-
         path = folder / name
-
         if path.exists():
-            return FileResponse(path)
-
+            return FileResponse(
+                path,
+                filename=name,
+                media_type="application/octet-stream"
+            )
     raise HTTPException(status_code=404)
-
 
 # -----------------------
 # DELETE
