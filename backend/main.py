@@ -25,7 +25,7 @@ app.add_middleware(
 # -----------------------
 
 SUPABASE_URL = "https://ayqafhdzjjhnptoycbji.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5cWFmaGR6ampobnB0b3ljYmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjQyNjQsImV4cCI6MjA4NzYwMDI2NH0.qHJkU3y-MmQzu22UvMVDASaK0a3Fi3ytImS3XZFtWRA"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
@@ -46,14 +46,16 @@ def get_user_id(auth_header: str | None):
     if not auth_header:
         return None
 
-    token = auth_header.replace("Bearer ", "")
+    try:
+        token = auth_header.split(" ")[1]
+    except:
+        return None
 
     r = requests.get(
         f"{SUPABASE_URL}/auth/v1/user",
         headers={
             "Authorization": f"Bearer {token}",
-            "apikey": SUPABASE_ANON_KEY,
-            "Content-Type": "application/json"
+            "apikey": SUPABASE_ANON_KEY
         }
     )
 
