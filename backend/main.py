@@ -38,7 +38,7 @@ UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 # -----------------------
-# AUTH VERIFY (FIXED)
+# AUTH VERIFY
 # -----------------------
 
 def get_user_id(auth_header: str | None):
@@ -46,10 +46,12 @@ def get_user_id(auth_header: str | None):
     if not auth_header:
         return None
 
-    try:
-        token = auth_header.split(" ")[1]
-    except:
+    parts = auth_header.split(" ")
+
+    if len(parts) != 2:
         return None
+
+    token = parts[1]
 
     r = requests.get(
         f"{SUPABASE_URL}/auth/v1/user",
