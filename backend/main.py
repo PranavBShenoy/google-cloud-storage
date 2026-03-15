@@ -23,8 +23,7 @@ app.add_middleware(
 # SUPABASE CONFIG
 # -----------------------
 SUPABASE_URL = "https://ayqafhdzjjhnptoycbji.supabase.co"
-
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5cWFmaGR6ampobnB0b3ljYmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjQyNjQsImV4cCI6MjA4NzYwMDI2NH0.qHJkU3y-MmQzu22UvMVDASaK0a3Fi3ytImS3XZFtWRA"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
@@ -57,7 +56,6 @@ def get_user_id(auth_header: str | None):
         return None
 
     return r.json()["id"]
-
 
 # -----------------------
 # UPLOAD FILE
@@ -95,7 +93,6 @@ async def upload_file(
 
     return {"message": "uploaded"}
 
-
 # -----------------------
 # LIST FILES
 # -----------------------
@@ -114,20 +111,27 @@ async def get_files(authorization: str = Header(None)):
 
     return res.data
 
-
 # -----------------------
-# DOWNLOAD
+# DOWNLOAD (FIXED)
 # -----------------------
 @app.get("/download/{name}")
 async def download_file(name: str):
+
     for folder in UPLOAD_DIR.iterdir():
+
         path = folder / name
+
         if path.exists():
+
             return FileResponse(
                 path,
+                media_type="application/octet-stream",
                 filename=name,
-                media_type="application/octet-stream"
+                headers={
+                    "Content-Disposition": f'attachment; filename="{name}"'
+                }
             )
+
     raise HTTPException(status_code=404)
 
 # -----------------------
