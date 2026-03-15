@@ -83,27 +83,36 @@ async function uploadFiles() {
 
     const token = session.access_token
 
-    for (const file of files) {
+    try {
 
-        const formData = new FormData()
-        formData.append("file", file)
+        for (const file of files) {
 
-            const res = await fetch("https://google-cloud-storage-77cv.onrender.com/upload", {
-                method: "POST",
-                headers: {
-                    Authorization: "Bearer " + token
-                },
-                body: formData
-            })
+            const formData = new FormData()
+            formData.append("file", file)
 
-            if (!res.ok) {
-                alert("Upload failed")
-                return
-            }
+                const res = await fetch("https://google-cloud-storage-77cv.onrender.com/upload", {
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                })
+
+                if (!res.ok) {
+                    const err = await res.text()
+                    console.error(err)
+                    alert("Upload failed")
+                    return
+                }
+        }
+
+        alert("Upload successful")
+        window.location.href = "dashboard.html"
+
+    } catch (err) {
+
+        console.error(err)
+        alert("Upload failed")
 
     }
-
-    alert("Upload successful")
-
-    window.location.href = "dashboard.html"
 }
