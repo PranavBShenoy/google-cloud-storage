@@ -13,14 +13,10 @@ const uploadBtn = document.getElementById("uploadBtn")
 document.addEventListener("dragover", e => e.preventDefault())
 document.addEventListener("drop", e => e.preventDefault())
 
-input.addEventListener("change", (e) => {
-
+input.addEventListener("change", e => {
     const selected = Array.from(e.target.files)
-
     files = files.concat(selected)
-
     renderFiles()
-
 })
 
 drop.addEventListener("dragover", e => {
@@ -33,7 +29,6 @@ drop.addEventListener("dragleave", () => {
 })
 
 drop.addEventListener("drop", e => {
-
     e.preventDefault()
 
     const dropped = Array.from(e.dataTransfer.files)
@@ -43,7 +38,6 @@ drop.addEventListener("drop", e => {
     renderFiles()
 
     drop.style.borderColor = "#38bdf8"
-
 })
 
 function renderFiles() {
@@ -63,7 +57,6 @@ function renderFiles() {
         list.appendChild(div)
 
     })
-
 }
 
 function removeFile(i) {
@@ -80,15 +73,15 @@ async function uploadFiles() {
         return
     }
 
-    const { data } = await sb.auth.getSession()
+    const { data: { session } } = await sb.auth.getSession()
 
-    if (!data.session) {
-        alert("Login expired")
-        window.location = "login.html"
+    if (!session) {
+        alert("Login expired. Please login again.")
+        window.location.href = "login.html"
         return
     }
 
-    const token = data.session.access_token
+    const token = session.access_token
 
     for (const file of files) {
 
@@ -111,6 +104,6 @@ async function uploadFiles() {
     }
 
     alert("Upload successful")
-    window.location = "dashboard.html"
 
+    window.location.href = "dashboard.html"
 }
