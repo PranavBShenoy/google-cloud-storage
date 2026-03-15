@@ -1,5 +1,4 @@
 const SUPABASE_URL="https://ayqafhdzjjhnptoycbji.supabase.co"
-
 const SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5cWFmaGR6ampobnB0b3ljYmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjQyNjQsImV4cCI6MjA4NzYwMDI2NH0.qHJkU3y-MmQzu22UvMVDASaK0a3Fi3ytImS3XZFtWRA"
 
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON)
@@ -7,161 +6,157 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON)
 let filesCache=[]
 
 async function loadUser(){
+    const {data:{user}}=await sb.auth.getUser()
 
-const {data:{user}}=await sb.auth.getUser()
+    if(!user){
+        window.location.href="login.html"
+        return
+    }
 
-if(!user){
-window.location.href="login.html"
-return
-}
+    document.getElementById("name").innerText=user.email
 
-document.getElementById("name").innerText=user.email
-
-loadFiles()
-
+    loadFiles()
 }
 
 async function logout(){
-
-await sb.auth.signOut()
-
-window.location.href="login.html"
-
+    await sb.auth.signOut()
+    window.location.href="login.html"
 }
 
 function goUpload(){
-
-window.location.href="upload.html"
-
+    window.location.href="upload.html"
 }
 
 async function loadFiles(){
 
-const {data}=await sb.auth.getSession()
+    const {data}=await sb.auth.getSession()
+    const token=data.session.access_token
 
-const token=data.session.access_token
+    const res=await fetch("https://google-cloud-storage-77cv.onrender.com/files",{
+        headers:{Authorization:"Bearer "+token}
+    })
 
-const res=await fetch("https://google-cloud-storage-77cv.onrender.com/files",{
-headers:{Authorization:"Bearer "+token}
-})
+    const files=await res.json()
 
-const files=await res.json()
+    filesCache=files
 
-filesCache=files
-
-renderFiles(files)
+    renderFiles(files)
 
 }
 
 function shorten(name){
-
-if(name.length<20) return name
-
-return name.substring(0,17)+"..."
-
+    if(name.length<20) return name
+        return name.substring(0,17)+"..."
 }
 
 function renderFiles(files){
 
-const grid=document.getElementById("filesGrid")
+    const grid=document.getElementById("filesGrid")
 
-grid.innerHTML=""
+    grid.innerHTML=""
 
-files.forEach(file=>{
+    files.forEach(file=>{
 
-const card=document.createElement("div")
+        const card=document.createElement("div")
 
-card.className="card"
+        card.className="card"
 
-let preview="📄"
+        let preview="📄"
 
-if(file.filename.match(/\.(jpg|jpeg|png|gif)$/i)){
+        if(file.filename.match(/\.(jpg|jpeg|png|gif)$/i)){
+            preview=`<img src="https://google-cloud-storage-77cv.onrender.com/download/${file.stored_name}">`
+        }
 
-preview=`<img src="https://google-cloud-storage-77cv.onrender.com/download/${file.stored_name}">`
+        if(file.filename.match(/\.(mp4|webm|mov)$/i)){
+            preview=`<video width="180" controls>
+            <source src="https://google-cloud-storage-77cv.onrender.com/download/${file.stored_name}">
+            </video>`
+        }
 
-}
+        card.innerHTML=`
 
-if(file.filename.match(/\.(mp4|webm|mov)$/i)){
+        ${preview}
 
-preview=`<video width="180" controls>
-<source src="https://google-cloud-storage-77cv.onrender.com/download/${file.stored_name}">
-</video>`
+        <p title="${file.filename}">
+        ${shorten(file.filename)}
+        </p>
 
-}
+        <div class="actions">
 
-card.innerHTML=`
+        <button onclick="downloadFile('${file.stored_name}')">
+        Download
+        </button>
 
-${preview}
+        <button onclick="deleteFile('${file.stored_name}')">
+        Delete
+        </button>
 
-<p title="${file.filename}">
-${shorten(file.filename)}
-</p>
+        <button onclick="shareFile('${file.stored_name}')">
+        Share
+        </button>
 
-<div class="actions">
+        </div>
+        `
 
-<button onclick="downloadFile('${file.stored_name}')">
-Download
-</button>
+        grid.appendChild(card)
 
-<button onclick="deleteFile('${file.stored_name}')">
-Delete
-</button>
-
-<button onclick="shareFile('${file.stored_name}')">
-Share
-</button>
-
-</div>
-`
-
-grid.appendChild(card)
-
-})
+    })
 
 }
 
 function filterFiles(){
 
-const q=document.getElementById("search").value.toLowerCase()
+    const q=document.getElementById("search").value.toLowerCase()
 
-const filtered=filesCache.filter(f=>
-f.filename.toLowerCase().includes(q)
-)
+    const filtered=filesCache.filter(f =>
+    f.filename.toLowerCase().includes(q)
+    )
 
-renderFiles(filtered)
+    renderFiles(filtered)
 
 }
 
+/* FIXED DOWNLOAD FUNCTION */
+
 function downloadFile(name){
 
-window.open(`https://google-cloud-storage-77cv.onrender.com/download/${name}`)
+    const link=document.createElement("a")
+
+    link.href=`https://google-cloud-storage-77cv.onrender.com/download/${name}`
+
+    link.download=name
+
+    document.body.appendChild(link)
+
+    link.click()
+
+    document.body.removeChild(link)
 
 }
 
 async function deleteFile(name){
 
-if(!confirm("Delete file?")) return
+    if(!confirm("Delete file?")) return
 
-const {data}=await sb.auth.getSession()
+        const {data}=await sb.auth.getSession()
+        const token=data.session.access_token
 
-const token=data.session.access_token
+        await fetch(`https://google-cloud-storage-77cv.onrender.com/delete/${name}`,{
+            method:"DELETE",
+            headers:{Authorization:"Bearer "+token}
+        })
 
-await fetch(`https://google-cloud-storage-77cv.onrender.com/delete/${name}`,{
-method:"DELETE",
-headers:{Authorization:"Bearer "+token}
-})
-
-loadFiles()
+        loadFiles()
 
 }
 
 function shareFile(name){
 
-const link=`https://google-cloud-storage-77cv.onrender.com/download/${name}`
+    const link=`https://google-cloud-storage-77cv.onrender.com/download/${name}`
 
-navigator.clipboard.writeText(link)
+    navigator.clipboard.writeText(link)
 
-alert("Link copied:\n"+link)
+    alert("Link copied:\n"+link)
 
 }
 
