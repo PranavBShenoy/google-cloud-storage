@@ -8,7 +8,6 @@ btrfsutil==6.19
 cffi==2.0.0
 click==8.3.1
 cryptography==46.0.5
-dbus-python==1.4.0
 distro==1.9.0
 ecdsa==0.19.1
 fastapi==0.135.1
