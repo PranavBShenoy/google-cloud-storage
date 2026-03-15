@@ -11,6 +11,7 @@ app = FastAPI()
 # -----------------------
 # CORS
 # -----------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,6 +23,7 @@ app.add_middleware(
 # -----------------------
 # SUPABASE CONFIG
 # -----------------------
+
 SUPABASE_URL = "https://ayqafhdzjjhnptoycbji.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
@@ -30,13 +32,15 @@ supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 # -----------------------
 # STORAGE
 # -----------------------
+
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 # -----------------------
-# AUTH VERIFY
+# AUTH VERIFY (FIXED)
 # -----------------------
+
 def get_user_id(auth_header: str | None):
 
     if not auth_header:
@@ -48,11 +52,13 @@ def get_user_id(auth_header: str | None):
         f"{SUPABASE_URL}/auth/v1/user",
         headers={
             "Authorization": f"Bearer {token}",
-            "apikey": SUPABASE_ANON_KEY
+            "apikey": SUPABASE_ANON_KEY,
+            "Content-Type": "application/json"
         }
     )
 
     if r.status_code != 200:
+        print("Auth failed:", r.text)
         return None
 
     return r.json()["id"]
@@ -60,6 +66,7 @@ def get_user_id(auth_header: str | None):
 # -----------------------
 # UPLOAD FILE
 # -----------------------
+
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
@@ -96,6 +103,7 @@ async def upload_file(
 # -----------------------
 # LIST FILES
 # -----------------------
+
 @app.get("/files")
 async def get_files(authorization: str = Header(None)):
 
@@ -112,8 +120,9 @@ async def get_files(authorization: str = Header(None)):
     return res.data
 
 # -----------------------
-# DOWNLOAD (FIXED)
+# DOWNLOAD
 # -----------------------
+
 @app.get("/download/{name}")
 async def download_file(name: str):
 
@@ -137,6 +146,7 @@ async def download_file(name: str):
 # -----------------------
 # DELETE
 # -----------------------
+
 @app.delete("/delete/{name}")
 async def delete_file(name: str, authorization: str = Header(None)):
 
