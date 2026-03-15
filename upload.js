@@ -73,6 +73,7 @@ async function uploadFiles() {
         return
     }
 
+    // get current session
     const { data: { session } } = await sb.auth.getSession()
 
     if (!session) {
@@ -92,18 +93,21 @@ async function uploadFiles() {
 
                 const res = await fetch("https://google-cloud-storage-77cv.onrender.com/upload", {
                     method: "POST",
-                    body: formData,
                     headers: {
                         Authorization: `Bearer ${token}`
-                    }
+                    },
+                    body: formData
                 })
 
                 if (!res.ok) {
+
                     const err = await res.text()
-                    console.error(err)
+                    console.error("Upload error:", err)
+
                     alert("Upload failed")
                     return
                 }
+
         }
 
         alert("Upload successful")
