@@ -1,4 +1,4 @@
-fastapxi
+fastapi
 uvicorn
 requests
 supabase
