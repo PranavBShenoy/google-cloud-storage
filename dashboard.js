@@ -3,16 +3,30 @@ const SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON)
 
-let filesCache=[]
 let currentFolder="root"
-let foldersSet=new Set()
+
+// ✅ buttons FIX
+function goUpload(){
+    window.location.href="upload.html"
+}
+
+async function logout(){
+    await sb.auth.signOut()
+    window.location.href="login.html"
+}
+
+function filterFiles(){}
+
+// ------------------------
 
 async function loadUser(){
     const {data:{user}}=await sb.auth.getUser()
+
     if(!user){
         window.location.href="login.html"
         return
     }
+
     document.getElementById("name").innerText=user.email
     loadFiles()
 }
@@ -22,60 +36,36 @@ async function loadFiles(){
     const {data}=await sb.auth.getSession()
     const token=data.session.access_token
 
-    const res=await fetch(
-        `https://google-cloud-storage-77cv.onrender.com/files?folder=${currentFolder}`,
-        {
-            headers:{Authorization:"Bearer "+token}
-        }
-    )
+    try {
+        const res=await fetch(
+            `https://google-cloud-storage-77cv.onrender.com/files?folder=${currentFolder}`,
+            {
+                headers:{Authorization:"Bearer "+token}
+            }
+        )
 
-    const files=await res.json()
-    filesCache=files
+        const files=await res.json()
 
-    loadFolders()
-    renderFiles(files)
-}
+        const grid=document.getElementById("filesGrid")
+        if(!grid) return
 
-function loadFolders(){
-    foldersSet.clear()
-    filesCache.forEach(f => foldersSet.add(f.folder))
-    renderFolders()
-}
+            grid.innerHTML=""
 
-function renderFolders(){
-    const container=document.getElementById("folders")
-    container.innerHTML=""
+            files.forEach(file=>{
+                const div=document.createElement("div")
 
-    foldersSet.forEach(folder=>{
-        const div=document.createElement("div")
-        div.className="folder"
-        div.innerText="📁 "+folder
+                div.innerHTML=`
+                <p>${file.filename}</p>
+                <button onclick="downloadFile('${file.stored_name}')">Download</button>
+                <button onclick="deleteFile('${file.stored_name}')">Delete</button>
+                `
 
-        div.onclick=()=>{
-            currentFolder=folder
-            loadFiles()
-        }
+                grid.appendChild(div)
+            })
 
-        container.appendChild(div)
-    })
-}
-
-function renderFiles(files){
-
-    const grid=document.getElementById("filesGrid")
-    grid.innerHTML=""
-
-    files.forEach(file=>{
-        const card=document.createElement("div")
-
-        card.innerHTML=`
-        <p>${file.filename}</p>
-        <button onclick="downloadFile('${file.stored_name}')">Download</button>
-        <button onclick="deleteFile('${file.stored_name}')">Delete</button>
-        `
-
-        grid.appendChild(card)
-    })
+    } catch(err){
+        console.error("LOAD ERROR:", err)
+    }
 }
 
 async function downloadFile(name){
@@ -107,18 +97,6 @@ async function deleteFile(name){
         }
     )
 
-    loadFiles()
-}
-
-function createFolder(){
-    const name=prompt("Folder name?")
-    if(!name) return
-        currentFolder=name
-        loadFiles()
-}
-
-function goRoot(){
-    currentFolder="root"
     loadFiles()
 }
 
