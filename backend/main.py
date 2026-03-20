@@ -1,8 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from supabase import create_client
-from pathlib import Path
 import requests
 import uuid
 
@@ -30,24 +28,14 @@ SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # -----------------------
-# STORAGE
-# -----------------------
-
-BASE_DIR = Path(__file__).resolve().parent
-UPLOAD_DIR = BASE_DIR / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
-
-# -----------------------
 # AUTH VERIFY
 # -----------------------
 
 def get_user_id(auth_header: str | None):
-
     if not auth_header:
         return None
 
     parts = auth_header.split(" ")
-
     if len(parts) != 2:
         return None
 
@@ -62,38 +50,31 @@ def get_user_id(auth_header: str | None):
     )
 
     if r.status_code != 200:
-        print("Auth failed:", r.text)
         return None
 
     return r.json()["id"]
 
 # -----------------------
-# UPLOAD FILE
+# UPLOAD (Supabase Storage)
 # -----------------------
 
 @app.post("/upload")
-async def upload_file(
-    file: UploadFile = File(...),
-    authorization: str = Header(None)
-):
+async def upload_file(file: UploadFile = File(...), authorization: str = Header(None)):
 
     user_id = get_user_id(authorization)
-
     if not user_id:
         raise HTTPException(status_code=401)
 
-    user_folder = UPLOAD_DIR / user_id
-    user_folder.mkdir(exist_ok=True)
-
-    ext = Path(file.filename).suffix
-    stored_name = f"{uuid.uuid4()}{ext}"
-
-    path = user_folder / stored_name
+    ext = file.filename.split(".")[-1]
+    stored_name = f"{uuid.uuid4()}.{ext}"
 
     content = await file.read()
 
-    with open(path, "wb") as f:
-        f.write(content)
+    supabase.storage.from_("files").upload(
+        f"{user_id}/{stored_name}",
+        content,
+        {"content-type": file.content_type}
+    )
 
     supabase.table("files").insert({
         "user_id": user_id,
@@ -112,7 +93,6 @@ async def upload_file(
 async def get_files(authorization: str = Header(None)):
 
     user_id = get_user_id(authorization)
-
     if not user_id:
         raise HTTPException(status_code=401)
 
@@ -124,28 +104,21 @@ async def get_files(authorization: str = Header(None)):
     return res.data
 
 # -----------------------
-# DOWNLOAD
+# DOWNLOAD (SIGNED URL)
 # -----------------------
 
 @app.get("/download/{name}")
-async def download_file(name: str):
+async def download_file(name: str, authorization: str = Header(None)):
 
-    for folder in UPLOAD_DIR.iterdir():
+    user_id = get_user_id(authorization)
+    if not user_id:
+        raise HTTPException(status_code=401)
 
-        path = folder / name
+    res = supabase.storage.from_("files").create_signed_url(
+        f"{user_id}/{name}", 60
+    )
 
-        if path.exists():
-
-            return FileResponse(
-                path,
-                media_type="application/octet-stream",
-                filename=name,
-                headers={
-                    "Content-Disposition": f'attachment; filename="{name}"'
-                }
-            )
-
-    raise HTTPException(status_code=404)
+    return {"url": res["signedURL"]}
 
 # -----------------------
 # DELETE
@@ -155,14 +128,10 @@ async def download_file(name: str):
 async def delete_file(name: str, authorization: str = Header(None)):
 
     user_id = get_user_id(authorization)
-
     if not user_id:
         raise HTTPException(status_code=401)
 
-    path = UPLOAD_DIR / user_id / name
-
-    if path.exists():
-        path.unlink()
+    supabase.storage.from_("files").remove([f"{user_id}/{name}"])
 
     supabase.table("files") \
         .delete() \
