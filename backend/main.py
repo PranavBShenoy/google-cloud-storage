@@ -1,8 +1,12 @@
-from fastapi import FastAPI, UploadFile, File, Header, HTTPException
+from fastapi import FastAPI, UploadFile, File, Header, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client
 import requests
 import uuid
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -22,24 +26,20 @@ app.add_middleware(
 # SUPABASE CONFIG
 # -----------------------
 
-SUPABASE_URL = "https://ayqafhdzjjhnptoycbji.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5cWFmaGR6ampobnB0b3ljYmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMjQyNjQsImV4cCI6MjA4NzYwMDI2NH0.qHJkU3y-MmQzu22UvMVDASaK0a3Fi3ytImS3XZFtWRA"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # -----------------------
-# AUTH VERIFY
+# AUTH
 # -----------------------
 
 def get_user_id(auth_header: str | None):
     if not auth_header:
         return None
 
-    parts = auth_header.split(" ")
-    if len(parts) != 2:
-        return None
-
-    token = parts[1]
+    token = auth_header.split(" ")[1]
 
     r = requests.get(
         f"{SUPABASE_URL}/auth/v1/user",
@@ -55,11 +55,15 @@ def get_user_id(auth_header: str | None):
     return r.json()["id"]
 
 # -----------------------
-# UPLOAD (Supabase Storage)
+# UPLOAD (WITH FOLDER)
 # -----------------------
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), authorization: str = Header(None)):
+async def upload_file(
+    file: UploadFile = File(...),
+    folder: str = Form("root"),
+    authorization: str = Header(None)
+):
 
     user_id = get_user_id(authorization)
     if not user_id:
@@ -70,8 +74,10 @@ async def upload_file(file: UploadFile = File(...), authorization: str = Header(
 
     content = await file.read()
 
+    path = f"{user_id}/{folder}/{stored_name}"
+
     supabase.storage.from_("files").upload(
-        f"{user_id}/{stored_name}",
+        path,
         content,
         {"content-type": file.content_type}
     )
@@ -80,17 +86,18 @@ async def upload_file(file: UploadFile = File(...), authorization: str = Header(
         "user_id": user_id,
         "filename": file.filename,
         "stored_name": stored_name,
+        "folder": folder,
         "size_bytes": len(content)
     }).execute()
 
     return {"message": "uploaded"}
 
 # -----------------------
-# LIST FILES
+# LIST FILES (BY FOLDER)
 # -----------------------
 
 @app.get("/files")
-async def get_files(authorization: str = Header(None)):
+async def get_files(folder: str = "root", authorization: str = Header(None)):
 
     user_id = get_user_id(authorization)
     if not user_id:
@@ -99,24 +106,25 @@ async def get_files(authorization: str = Header(None)):
     res = supabase.table("files") \
         .select("*") \
         .eq("user_id", user_id) \
+        .eq("folder", folder) \
         .execute()
 
     return res.data
 
 # -----------------------
-# DOWNLOAD (SIGNED URL)
+# DOWNLOAD
 # -----------------------
 
 @app.get("/download/{name}")
-async def download_file(name: str, authorization: str = Header(None)):
+async def download_file(name: str, folder: str = "root", authorization: str = Header(None)):
 
     user_id = get_user_id(authorization)
     if not user_id:
         raise HTTPException(status_code=401)
 
-    res = supabase.storage.from_("files").create_signed_url(
-        f"{user_id}/{name}", 60
-    )
+    path = f"{user_id}/{folder}/{name}"
+
+    res = supabase.storage.from_("files").create_signed_url(path, 60)
 
     return {"url": res["signedURL"]}
 
@@ -125,13 +133,15 @@ async def download_file(name: str, authorization: str = Header(None)):
 # -----------------------
 
 @app.delete("/delete/{name}")
-async def delete_file(name: str, authorization: str = Header(None)):
+async def delete_file(name: str, folder: str = "root", authorization: str = Header(None)):
 
     user_id = get_user_id(authorization)
     if not user_id:
         raise HTTPException(status_code=401)
 
-    supabase.storage.from_("files").remove([f"{user_id}/{name}"])
+    path = f"{user_id}/{folder}/{name}"
+
+    supabase.storage.from_("files").remove([path])
 
     supabase.table("files") \
         .delete() \

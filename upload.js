@@ -4,47 +4,27 @@ const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
 
 let files = []
+let currentFolder = "root"
 
-const drop = document.getElementById("drop")
 const input = document.getElementById("fileInput")
 const list = document.getElementById("fileList")
 const uploadBtn = document.getElementById("uploadBtn")
+const folderInput = document.getElementById("folderInput")
 
-document.addEventListener("dragover", e => e.preventDefault())
-document.addEventListener("drop", e => e.preventDefault())
+folderInput.addEventListener("input", e => {
+    currentFolder = e.target.value || "root"
+})
 
 input.addEventListener("change", e => {
-    const selected = Array.from(e.target.files)
-    files = files.concat(selected)
+    files = files.concat(Array.from(e.target.files))
     renderFiles()
-})
-
-drop.addEventListener("dragover", e => {
-    e.preventDefault()
-    drop.style.borderColor = "#22c55e"
-})
-
-drop.addEventListener("dragleave", () => {
-    drop.style.borderColor = "#38bdf8"
-})
-
-drop.addEventListener("drop", e => {
-    e.preventDefault()
-    const dropped = Array.from(e.dataTransfer.files)
-    files = files.concat(dropped)
-    renderFiles()
-    drop.style.borderColor = "#38bdf8"
 })
 
 function renderFiles() {
     list.innerHTML = ""
     files.forEach((file, i) => {
         const div = document.createElement("div")
-        div.className = "file"
-        div.innerHTML = `
-        <span>${file.name} ${(file.size / 1024).toFixed(1)} KB</span>
-        <button onclick="removeFile(${i})">❌</button>
-        `
+        div.innerHTML = `${file.name} <button onclick="removeFile(${i})">❌</button>`
         list.appendChild(div)
     })
 }
@@ -58,50 +38,22 @@ uploadBtn.addEventListener("click", uploadFiles)
 
 async function uploadFiles() {
 
-    if (files.length === 0) {
-        alert("Select files first")
-        return
-    }
-
     const { data: { session } } = await sb.auth.getSession()
-
-    if (!session) {
-        alert("Login expired")
-        window.location.href = "login.html"
-        return
-    }
-
     const token = session.access_token
 
-    try {
-        for (const file of files) {
+    for (const file of files) {
 
-            const formData = new FormData()
-            formData.append("file", file)
+        const formData = new FormData()
+        formData.append("file", file)
+            formData.append("folder", currentFolder)
 
-                const res = await fetch(
-                    "https://google-cloud-storage-77cv.onrender.com/upload",
-                    {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Bearer ${token}`
-                        },
-                        body: formData
-                    }
-                )
-
-                if (!res.ok) {
-                    console.error(await res.text())
-                    alert("Upload failed")
-                    return
-                }
-        }
-
-        alert("Upload successful")
-        window.location.href = "dashboard.html"
-
-    } catch (err) {
-        console.error(err)
-        alert("Upload failed")
+                await fetch("https://google-cloud-storage-77cv.onrender.com/upload", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData
+                })
     }
+
+    alert("Uploaded")
+    window.location.href = "dashboard.html"
 }

@@ -4,26 +4,17 @@ const SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON)
 
 let filesCache=[]
+let currentFolder="root"
+let foldersSet=new Set()
 
 async function loadUser(){
     const {data:{user}}=await sb.auth.getUser()
-
     if(!user){
         window.location.href="login.html"
         return
     }
-
     document.getElementById("name").innerText=user.email
     loadFiles()
-}
-
-async function logout(){
-    await sb.auth.signOut()
-    window.location.href="login.html"
-}
-
-function goUpload(){
-    window.location.href="upload.html"
 }
 
 async function loadFiles(){
@@ -32,7 +23,7 @@ async function loadFiles(){
     const token=data.session.access_token
 
     const res=await fetch(
-        "https://google-cloud-storage-77cv.onrender.com/files",
+        `https://google-cloud-storage-77cv.onrender.com/files?folder=${currentFolder}`,
         {
             headers:{Authorization:"Bearer "+token}
         }
@@ -40,12 +31,33 @@ async function loadFiles(){
 
     const files=await res.json()
     filesCache=files
+
+    loadFolders()
     renderFiles(files)
 }
 
-function shorten(name){
-    if(name.length<20) return name
-        return name.substring(0,17)+"..."
+function loadFolders(){
+    foldersSet.clear()
+    filesCache.forEach(f => foldersSet.add(f.folder))
+    renderFolders()
+}
+
+function renderFolders(){
+    const container=document.getElementById("folders")
+    container.innerHTML=""
+
+    foldersSet.forEach(folder=>{
+        const div=document.createElement("div")
+        div.className="folder"
+        div.innerText="📁 "+folder
+
+        div.onclick=()=>{
+            currentFolder=folder
+            loadFiles()
+        }
+
+        container.appendChild(div)
+    })
 }
 
 function renderFiles(files){
@@ -54,32 +66,16 @@ function renderFiles(files){
     grid.innerHTML=""
 
     files.forEach(file=>{
-
         const card=document.createElement("div")
-        card.className="card"
 
         card.innerHTML=`
-        <p title="${file.filename}">
-        ${shorten(file.filename)}
-        </p>
-
-        <div class="actions">
+        <p>${file.filename}</p>
         <button onclick="downloadFile('${file.stored_name}')">Download</button>
         <button onclick="deleteFile('${file.stored_name}')">Delete</button>
-        <button onclick="shareFile('${file.stored_name}')">Share</button>
-        </div>
         `
 
         grid.appendChild(card)
     })
-}
-
-function filterFiles(){
-    const q=document.getElementById("search").value.toLowerCase()
-    const filtered=filesCache.filter(f =>
-    f.filename.toLowerCase().includes(q)
-    )
-    renderFiles(filtered)
 }
 
 async function downloadFile(name){
@@ -88,7 +84,7 @@ async function downloadFile(name){
     const token=data.session.access_token
 
     const res=await fetch(
-        `https://google-cloud-storage-77cv.onrender.com/download/${name}`,
+        `https://google-cloud-storage-77cv.onrender.com/download/${name}?folder=${currentFolder}`,
         {
             headers:{Authorization:"Bearer "+token}
         }
@@ -100,38 +96,30 @@ async function downloadFile(name){
 
 async function deleteFile(name){
 
-    if(!confirm("Delete file?")) return
-
-        const {data}=await sb.auth.getSession()
-        const token=data.session.access_token
-
-        await fetch(
-            `https://google-cloud-storage-77cv.onrender.com/delete/${name}`,
-            {
-                method:"DELETE",
-                headers:{Authorization:"Bearer "+token}
-            }
-        )
-
-        loadFiles()
-}
-
-async function shareFile(name){
-
     const {data}=await sb.auth.getSession()
     const token=data.session.access_token
 
-    const res=await fetch(
-        `https://google-cloud-storage-77cv.onrender.com/download/${name}`,
+    await fetch(
+        `https://google-cloud-storage-77cv.onrender.com/delete/${name}?folder=${currentFolder}`,
         {
+            method:"DELETE",
             headers:{Authorization:"Bearer "+token}
         }
     )
 
-    const dataRes=await res.json()
+    loadFiles()
+}
 
-    navigator.clipboard.writeText(dataRes.url)
-    alert("Link copied!")
+function createFolder(){
+    const name=prompt("Folder name?")
+    if(!name) return
+        currentFolder=name
+        loadFiles()
+}
+
+function goRoot(){
+    currentFolder="root"
+    loadFiles()
 }
 
 loadUser()
