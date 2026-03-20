@@ -13,12 +13,11 @@ app = FastAPI()
 # -----------------------
 # CORS
 # -----------------------
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "https://google-cloud-storage-sand.vercel.app"
-],
+        "https://google-cloud-storage-sand.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,7 +26,6 @@ app.add_middleware(
 # -----------------------
 # SUPABASE CONFIG
 # -----------------------
-
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
@@ -36,12 +34,15 @@ supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 # -----------------------
 # AUTH
 # -----------------------
-
 def get_user_id(auth_header: str | None):
     if not auth_header:
         return None
 
-    token = auth_header.split(" ")[1]
+    parts = auth_header.split(" ")
+    if len(parts) != 2:
+        return None
+
+    token = parts[1]
 
     r = requests.get(
         f"{SUPABASE_URL}/auth/v1/user",
@@ -57,19 +58,28 @@ def get_user_id(auth_header: str | None):
     return r.json()["id"]
 
 # -----------------------
-# UPLOAD (WITH FOLDER)
+# ROOT (optional)
 # -----------------------
+@app.get("/")
+def root():
+    return {"status": "API running"}
 
+# -----------------------
+# UPLOAD
+# -----------------------
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
-    folder: str = Form("root"),
+    folder: str = Form(None),
     authorization: str = Header(None)
 ):
-
     user_id = get_user_id(authorization)
     if not user_id:
         raise HTTPException(status_code=401)
+
+    # ✅ safe folder handling
+    if not folder:
+        folder = "root"
 
     ext = file.filename.split(".")[-1]
     stored_name = f"{uuid.uuid4()}.{ext}"
@@ -78,12 +88,14 @@ async def upload_file(
 
     path = f"{user_id}/{folder}/{stored_name}"
 
+    # upload to supabase storage
     supabase.storage.from_("files").upload(
         path,
         content,
         {"content-type": file.content_type}
     )
 
+    # save metadata
     supabase.table("files").insert({
         "user_id": user_id,
         "filename": file.filename,
@@ -95,12 +107,10 @@ async def upload_file(
     return {"message": "uploaded"}
 
 # -----------------------
-# LIST FILES (BY FOLDER)
+# LIST FILES
 # -----------------------
-
 @app.get("/files")
 async def get_files(folder: str = "root", authorization: str = Header(None)):
-
     user_id = get_user_id(authorization)
     if not user_id:
         raise HTTPException(status_code=401)
@@ -116,10 +126,12 @@ async def get_files(folder: str = "root", authorization: str = Header(None)):
 # -----------------------
 # DOWNLOAD
 # -----------------------
-
 @app.get("/download/{name}")
-async def download_file(name: str, folder: str = "root", authorization: str = Header(None)):
-
+async def download_file(
+    name: str,
+    folder: str = "root",
+    authorization: str = Header(None)
+):
     user_id = get_user_id(authorization)
     if not user_id:
         raise HTTPException(status_code=401)
@@ -133,18 +145,22 @@ async def download_file(name: str, folder: str = "root", authorization: str = He
 # -----------------------
 # DELETE
 # -----------------------
-
 @app.delete("/delete/{name}")
-async def delete_file(name: str, folder: str = "root", authorization: str = Header(None)):
-
+async def delete_file(
+    name: str,
+    folder: str = "root",
+    authorization: str = Header(None)
+):
     user_id = get_user_id(authorization)
     if not user_id:
         raise HTTPException(status_code=401)
 
     path = f"{user_id}/{folder}/{name}"
 
+    # delete from storage
     supabase.storage.from_("files").remove([path])
 
+    # delete metadata
     supabase.table("files") \
         .delete() \
         .eq("stored_name", name) \

@@ -11,49 +11,92 @@ const list = document.getElementById("fileList")
 const uploadBtn = document.getElementById("uploadBtn")
 const folderInput = document.getElementById("folderInput")
 
+// ✅ folder handling
 folderInput.addEventListener("input", e => {
-    currentFolder = e.target.value || "root"
+    currentFolder = e.target.value.trim() || "root"
 })
 
+// ✅ file select
 input.addEventListener("change", e => {
     files = files.concat(Array.from(e.target.files))
     renderFiles()
 })
 
+// ✅ render files
 function renderFiles() {
     list.innerHTML = ""
+
     files.forEach((file, i) => {
         const div = document.createElement("div")
-        div.innerHTML = `${file.name} <button onclick="removeFile(${i})">❌</button>`
+        div.className = "file"
+
+        div.innerHTML = `
+        <span>${file.name}</span>
+        <button onclick="removeFile(${i})">❌</button>
+        `
+
         list.appendChild(div)
     })
 }
 
+// ✅ remove file
 function removeFile(i) {
     files.splice(i, 1)
     renderFiles()
 }
 
+// ✅ upload
 uploadBtn.addEventListener("click", uploadFiles)
 
 async function uploadFiles() {
 
-    const { data: { session } } = await sb.auth.getSession()
-    const token = session.access_token
-
-    for (const file of files) {
-
-        const formData = new FormData()
-        formData.append("file", file)
-            formData.append("folder", currentFolder)
-
-                await fetch("https://google-cloud-storage-77cv.onrender.com/upload", {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${token}` },
-                    body: formData
-                })
+    if (files.length === 0) {
+        alert("Select files first")
+        return
     }
 
-    alert("Uploaded")
-    window.location.href = "dashboard.html"
+    const { data: { session } } = await sb.auth.getSession()
+
+    if (!session) {
+        alert("Login expired")
+        window.location.href = "login.html"
+        return
+    }
+
+    const token = session.access_token
+
+    try {
+
+        for (const file of files) {
+
+            const formData = new FormData()
+            formData.append("file", file)
+                formData.append("folder", currentFolder || "root")
+
+                    const res = await fetch(
+                        "https://google-cloud-storage-77cv.onrender.com/upload",
+                        {
+                            method: "POST",
+                            headers: {
+                                Authorization: `Bearer ${token}`
+                            },
+                            body: formData
+                        }
+                    )
+
+                    if (!res.ok) {
+                        const err = await res.text()
+                        console.error("Upload failed:", err)
+                        alert("Upload failed ❌")
+                        return
+                    }
+        }
+
+        alert("Upload successful ✅")
+        window.location.href = "dashboard.html"
+
+    } catch (err) {
+        console.error("ERROR:", err)
+        alert("Something went wrong ❌")
+    }
 }
