@@ -5,10 +5,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
 
 let currentFolder = "root"
 
-// ------------------------
-// NAV BUTTONS
-// ------------------------
-
+// NAV
 function goUpload() {
     window.location.href = "upload.html"
 }
@@ -18,12 +15,19 @@ async function logout() {
     window.location.href = "login.html"
 }
 
-function filterFiles() {}
+function goRoot() {
+    currentFolder = "root"
+    loadFiles()
+}
 
-// ------------------------
-// AUTH + LOAD USER
-// ------------------------
+function createFolder() {
+    const name = prompt("Folder name")
+    if (!name) return
+        currentFolder = name
+        loadFiles()
+}
 
+// AUTH
 async function loadUser() {
     const { data: { user } } = await sb.auth.getUser()
 
@@ -36,21 +40,13 @@ async function loadUser() {
     loadFiles()
 }
 
-// ------------------------
-// LOAD FILES
-// ------------------------
-
+// FILES
 async function loadFiles() {
     const { data: { session } } = await sb.auth.getSession()
+    if (!session) return
 
-    if (!session) {
-        window.location.href = "login.html"
-        return
-    }
+        const token = session.access_token
 
-    const token = session.access_token
-
-    try {
         const res = await fetch(
             `https://google-cloud-storage-77cv.onrender.com/files?folder=${currentFolder}`,
             {
@@ -58,96 +54,58 @@ async function loadFiles() {
             }
         )
 
-        if (!res.ok) {
-            console.error("Failed to fetch files")
-            return
-        }
-
         const files = await res.json()
 
         const grid = document.getElementById("filesGrid")
-        if (!grid) return
+        grid.innerHTML = ""
 
-            grid.innerHTML = ""
+        files.forEach(file => {
+            const div = document.createElement("div")
 
-            files.forEach(file => {
-                const div = document.createElement("div")
+            div.innerHTML = `
+            <p>${file.filename}</p>
+            <button onclick="downloadFile('${file.stored_name}')">Download</button>
+            <button onclick="deleteFile('${file.stored_name}')">Delete</button>
+            `
 
-                div.innerHTML = `
-                <p>${file.filename}</p>
-                <button onclick="downloadFile('${file.stored_name}')">Download</button>
-                <button onclick="deleteFile('${file.stored_name}')">Delete</button>
-                `
-
-                grid.appendChild(div)
-            })
-
-    } catch (err) {
-        console.error("LOAD ERROR:", err)
-    }
+            grid.appendChild(div)
+        })
 }
 
-// ------------------------
 // DOWNLOAD
-// ------------------------
-
 async function downloadFile(name) {
     const { data: { session } } = await sb.auth.getSession()
+    if (!session) return
 
-    if (!session) {
-        window.location.href = "login.html"
-        return
-    }
+        const token = session.access_token
 
-    const token = session.access_token
+        const res = await fetch(
+            `https://google-cloud-storage-77cv.onrender.com/download/${name}?folder=${currentFolder}`,
+            {
+                headers: { Authorization: "Bearer " + token }
+            }
+        )
 
-    const res = await fetch(
-        `https://google-cloud-storage-77cv.onrender.com/download/${name}?folder=${currentFolder}`,
-        {
-            headers: { Authorization: "Bearer " + token }
-        }
-    )
-
-    if (!res.ok) {
-        alert("Download failed ❌")
-        return
-    }
-
-    const data = await res.json()
-    window.location.href = data.url
+        const data = await res.json()
+        window.location.href = data.url
 }
 
-// ------------------------
 // DELETE
-// ------------------------
-
 async function deleteFile(name) {
     const { data: { session } } = await sb.auth.getSession()
+    if (!session) return
 
-    if (!session) {
-        window.location.href = "login.html"
-        return
-    }
+        const token = session.access_token
 
-    const token = session.access_token
+        await fetch(
+            `https://google-cloud-storage-77cv.onrender.com/delete/${name}?folder=${currentFolder}`,
+            {
+                method: "DELETE",
+                headers: { Authorization: "Bearer " + token }
+            }
+        )
 
-    const res = await fetch(
-        `https://google-cloud-storage-77cv.onrender.com/delete/${name}?folder=${currentFolder}`,
-        {
-            method: "DELETE",
-            headers: { Authorization: "Bearer " + token }
-        }
-    )
-
-    if (!res.ok) {
-        alert("Delete failed ❌")
-        return
-    }
-
-    alert("Deleted ✅")
-    loadFiles()
+        loadFiles()
 }
-
-// ------------------------
 
 loadUser()
