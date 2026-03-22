@@ -5,7 +5,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
 
 let currentFolder = "root"
 
-// NAV
+// ---------------- NAV ----------------
+
 function goUpload() {
     window.location.href = "upload.html"
 }
@@ -27,7 +28,8 @@ function createFolder() {
         loadFiles()
 }
 
-// AUTH
+// ---------------- AUTH ----------------
+
 async function loadUser() {
     const { data: { user } } = await sb.auth.getUser()
 
@@ -40,7 +42,8 @@ async function loadUser() {
     loadFiles()
 }
 
-// FILES
+// ---------------- FILES ----------------
+
 async function loadFiles() {
     const { data: { session } } = await sb.auth.getSession()
     if (!session) return
@@ -72,25 +75,39 @@ async function loadFiles() {
         })
 }
 
-// DOWNLOAD
+// ---------------- DOWNLOAD ----------------
+
 async function downloadFile(name) {
     const { data: { session } } = await sb.auth.getSession()
     if (!session) return
 
         const token = session.access_token
 
-        const res = await fetch(
-            `https://google-cloud-storage-77cv.onrender.com/download/${name}?folder=${currentFolder}`,
-            {
-                headers: { Authorization: "Bearer " + token }
-            }
-        )
+        try {
+            const res = await fetch(
+                `https://google-cloud-storage-77cv.onrender.com/download/${name}?folder=${currentFolder}`,
+                {
+                    headers: { Authorization: "Bearer " + token }
+                }
+            )
 
-        const data = await res.json()
-        window.location.href = data.url
+            const data = await res.json()
+
+            if (!data.url) {
+                alert("Download failed ❌")
+                return
+            }
+
+            window.location.href = data.url
+
+        } catch (err) {
+            console.error(err)
+            alert("Download crashed ❌")
+        }
 }
 
-// DELETE
+// ---------------- DELETE ----------------
+
 async function deleteFile(name) {
     const { data: { session } } = await sb.auth.getSession()
     if (!session) return
@@ -107,5 +124,7 @@ async function deleteFile(name) {
 
         loadFiles()
 }
+
+// ---------------- START ----------------
 
 loadUser()

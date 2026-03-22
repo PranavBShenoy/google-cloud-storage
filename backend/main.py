@@ -123,8 +123,14 @@ async def download_file(name: str, folder: str = "root", authorization: str = He
 
     try:
         res = supabase.storage.from_("files").create_signed_url(path, 60)
+
+        if "signedURL" not in res:
+            raise Exception(res)
+
         return {"url": res["signedURL"]}
+
     except Exception as e:
+        print("DOWNLOAD ERROR:", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 # -----------------------
