@@ -89,11 +89,18 @@ async def upload_file(
     path = f"{user_id}/{folder}/{stored_name}"
 
     # upload to supabase storage
-    supabase.storage.from_("files").upload(
+    try:
+    res = supabase.storage.from_("files").upload(
         path,
         content,
         {"content-type": file.content_type}
     )
+
+    print("UPLOAD RESULT:", res)
+
+except Exception as e:
+    print("UPLOAD EXCEPTION:", str(e))
+    raise HTTPException(status_code=500, detail=str(e))
 
     # save metadata
     supabase.table("files").insert({
