@@ -10,9 +10,6 @@ load_dotenv()
 
 app = FastAPI()
 
-# -----------------------
-# CORS
-# -----------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://google-cloud-storage-sand.vercel.app"],
@@ -21,16 +18,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -----------------------
-# SUPABASE
-# -----------------------
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+
 supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-# -----------------------
-# AUTH
-# -----------------------
 def get_user_id(auth_header):
     if not auth_header:
         return None
@@ -49,9 +41,7 @@ def get_user_id(auth_header):
 
     return r.json()["id"]
 
-# -----------------------
-# UPLOAD
-# -----------------------
+# ---------------- UPLOAD ----------------
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
@@ -62,8 +52,7 @@ async def upload_file(
     if not user_id:
         raise HTTPException(status_code=401)
 
-    if not folder:
-        folder = "root"
+    folder = folder or "root"
 
     ext = file.filename.split(".")[-1]
     stored_name = f"{uuid.uuid4()}.{ext}"
@@ -71,18 +60,15 @@ async def upload_file(
     content = await file.read()
     path = f"{user_id}/{folder}/{stored_name}"
 
-    # ✅ upload
     res = supabase.storage.from_("files").upload(
         path,
         content,
         {"content-type": file.content_type}
     )
 
-    # ❗ CRITICAL FIX
     if isinstance(res, dict) and res.get("error"):
         raise HTTPException(status_code=500, detail=res["error"])
 
-    # save DB
     supabase.table("files").insert({
         "user_id": user_id,
         "filename": file.filename,
@@ -93,9 +79,7 @@ async def upload_file(
 
     return {"message": "uploaded"}
 
-# -----------------------
-# FILES
-# -----------------------
+# ---------------- FILES ----------------
 @app.get("/files")
 async def get_files(folder: str = "root", authorization: str = Header(None)):
     user_id = get_user_id(authorization)
@@ -110,9 +94,7 @@ async def get_files(folder: str = "root", authorization: str = Header(None)):
 
     return res.data
 
-# -----------------------
-# DOWNLOAD
-# -----------------------
+# ---------------- DOWNLOAD ----------------
 @app.get("/download/{name}")
 async def download_file(name: str, folder: str = "root", authorization: str = Header(None)):
     user_id = get_user_id(authorization)
@@ -121,21 +103,14 @@ async def download_file(name: str, folder: str = "root", authorization: str = He
 
     path = f"{user_id}/{folder}/{name}"
 
-    try:
-        res = supabase.storage.from_("files").create_signed_url(path, 60)
+    res = supabase.storage.from_("files").create_signed_url(path, 60)
 
-        if "signedURL" not in res:
-            raise Exception(res)
+    if not res or "signedURL" not in res:
+        raise HTTPException(status_code=500, detail="Failed to generate URL")
 
-        return {"url": res["signedURL"]}
+    return {"url": res["signedURL"]}
 
-    except Exception as e:
-        print("DOWNLOAD ERROR:", e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-# -----------------------
-# DELETE
-# -----------------------
+# ---------------- DELETE ----------------
 @app.delete("/delete/{name}")
 async def delete_file(name: str, folder: str = "root", authorization: str = Header(None)):
     user_id = get_user_id(authorization)
@@ -144,7 +119,10 @@ async def delete_file(name: str, folder: str = "root", authorization: str = Head
 
     path = f"{user_id}/{folder}/{name}"
 
-    supabase.storage.from_("files").remove([path])
+    res = supabase.storage.from_("files").remove([path])
+
+    if isinstance(res, dict) and res.get("error"):
+        raise HTTPException(status_code=500, detail=res["error"])
 
     supabase.table("files") \
         .delete() \
